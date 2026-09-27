@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 Database Service
+  mysql_db:
+    image: mysql:8.0
+    container_name: todo_mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: todo_db
+      MYSQL_USER: todouser
+      MYSQL_PASSWORD: todopassword123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword123"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Adminer (Lightweight Web UI for MySQL Management)
+  adminer:
+    image: adminer:latest
+    container_name: todo_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql_db
+
+  # Flask REST API Service
+  api:
+    build: .
+    container_name: todo_flask_api
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      - MYSQL_HOST=mysql_db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=todouser
+      - MYSQL_PASSWORD=todopassword123
+      - MYSQL_DB=todo_db
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5002
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
